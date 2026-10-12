@@ -1,0 +1,52 @@
+[package]
+name = "reddit-mcp"
+version = "0.1.0"
+edition = "2024"
+description = "MCP server for full Reddit control over the standard installed-app OAuth flow"
+repository = "https://github.com/j-shm/reddit-mcp"
+keywords = ["reddit", "mcp", "model-context-protocol", "ai", "oauth"]
+categories = ["command-line-utilities"]
+license = "MIT"
+rust-version = "1.88"
+
+[features]
+# TLS strategy. Reddit's edge (Fastly) fingerprints TLS handshakes and has
+# been observed serving intermittent 403 block pages to rustls. The default
+# build compiles BOTH stacks: requests start on the platform-native one
+# (macOS: Security.framework, Windows: SChannel, Linux: OpenSSL) and switch
+# to rustls automatically after repeated block pages. Single-stack builds
+# are available for smaller binaries; rustls-only is known to be
+# intermittently blocked by Reddit's edge.
+default = ["tls-failover"]
+tls-failover = ["reqwest/native-tls", "reqwest/rustls-tls"]
+native-tls-backend = ["reqwest/native-tls"]
+rustls-backend = ["reqwest/rustls-tls"]
+
+[dependencies]
+rmcp = { version = "3.5", features = ["server", "macros", "transport-io"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
+reqwest = { version = "0.12", default-features = false, features = [
+    "json",
+    "gzip",
+] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+schemars = "1"
+thiserror = "2"
+anyhow = "1"
+rand = "0.9"
+dirs = "6"
+toml = "0.9"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+wiremock = "0.6"
+
+[[bin]]
+name = "reddit-mcp"
+path = "src/main.rs"
+
+[lib]
+name = "reddit_mcp"
+path = "src/lib.rs"

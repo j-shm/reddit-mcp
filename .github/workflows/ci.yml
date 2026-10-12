@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Formatting
+        run: cargo fmt --all --check
+      - name: Clippy (default dual-stack)
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Clippy (native-tls only)
+        run: cargo clippy --all-targets --no-default-features --features native-tls-backend -- -D warnings
+      - name: Clippy (rustls only)
+        run: cargo clippy --all-targets --no-default-features --features rustls-backend -- -D warnings
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install OpenSSL headers (Linux native-tls)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev pkg-config
+      - name: Tests
+        run: cargo test --all
+      - name: Single-stack builds compile
+        shell: bash
+        run: |
+          cargo check --no-default-features --features native-tls-backend
+          cargo check --no-default-features --features rustls-backend
